@@ -5,6 +5,7 @@ import express from 'express'
 import sqlite3 from 'sqlite3'
 import morgan from 'morgan'
 import cors from 'cors'
+import {actionMsgTemplates} from './templates.js'
 
 sqlite3.verbose()
 
@@ -23,25 +24,6 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(morgan())
 app.use(cors())
-
-const notficationMsgTemplates = {
-  create_todo: `🎉 [user] created new todo titled [title]. Review it and add your comments`,
-  update_todo: `✏️ '[title]' has been updated by [user]. Check out the latest updates!`,
-  invite: `👋 [user] wants you to be a part of [project]. Please review the invitation and join the conversation.`,
-  completition: `🎉 [user] marked todo '[title]' as complete. Take a look at the finished result!`,
-  comment: `🗨️ [user] has added a new comment to todo '[title]'. Check it out and reply if needed.`,
-  assign: `📝 [user] has assigned you to todo '[title]'. Review the details and start working on it [link].`,
-  share: `🔗 [user] has shared [task/document] '[Title]' with you. Access it [here/link] and collaborate!`,
-  deadline_approaching: `⏰ Reminder: The deadline for todo '[title]' is approaching in [x] days. Make sure you're on track!"`,
-  review: `📋 [User] has submitted [task/document] '[Title]' for your review. Please provide your feedback [here/link].`,
-  status_change: `"🔄 The status of [task/document] '[Title]' has changed to [New Status] by [User]. See the updated status [here/link].`,
-  file_upload: `📤 [User] has uploaded a new file: '[Filename]'. Access it [here/link] for review.`,
-  file_download: `📥 [User] downloaded [file/document] '[Filename]'. If you need it, you can access it [here/link].`,
-  progress_update: `📊 [User] updated the progress on [task/document] '[Title]' to [X]%. Check the progress and add any comments [here/link].`,
-  new_member_join: `👋 Welcome [New Member] to [project/team]! They have joined us to work on [specific tasks/roles].`,
-  feedback: `📢 [User] provided feedback on [task/document] '[Title]'. Read their feedback and respond [here/link].`,
-  reaction: `[User] reacted to your comment on [] with [reaction type].`,
-}
 
 app.get('/api/v0/todos', async (req, res) => {
   try {
@@ -94,6 +76,17 @@ app.post('/api/v0/projects', async (req, res) => {
 })
 async function main() {
   const users = [{email: 'adam@gmail.com', password: 'qwert'}, {email: 'sam@gmail.com', password: 'yuiop'}]
+  const createActionMsg = actionMsgTemplates['create']
+  const values = ['alex', 'todo', 'create user actions']
+  let index = 0
+  const regex = /\[[^\]]*\]/gi
+  const msg = createActionMsg.replace(regex, (match) => {
+    const replacement = match ? values[index] : match
+    index++
+    return replacement
+  })
+  console.log(msg)
+
   try {
     db.serialize(() => {
       db.run(`create table if not exists users (id integer primary key not null, email text not null, password text not null)`)
