@@ -25,11 +25,25 @@ const db = new sqlite3.Database(':memory:', (err) => {
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(morgan())
+app.use(morgan('tiny'))
 app.use(cors())
 app.use(helmet())
 
-const action_scope = { LOCAL: 'local', PROJECT: 'project' }
+'test tring'
+
+const actionScope = { LOCAL: 'local', PROJECT: 'project' }
+function actionMsgTemplateConverter(actionType, values) {
+  const createActionMsg = actionMsgTemplates[actionType]
+  let index = 0
+  const regex = /\[[^\]]*\]/gi
+  const msg = createActionMsg.replace(regex, (match) => {
+    const replacement = match ? values[index] : match
+    index++
+    return replacement
+  })
+  console.log(msg)
+  return msg
+}
 
 app.get('/api/v0/todos', async (req, res) => {
   try {
@@ -49,28 +63,47 @@ app.get('/api/v0/todos', async (req, res) => {
 })
 app.post('/api/v0/todos', async (req, res) => {
   try {
-    const columns = Object.keys(req.body)
-    const values = Object.values(req.body)
-    await new Promise((res, rej) => {
+    const todo = await new Promise((res, rej) => {
       db.serialize(() => {
-        db.run(`insert into todos (title, created_by_user_id) values (?, ?)`, [req.body.title, req.body.user_id], (err) => {
-          if (err) {
-            rej(err)
-            return
-          }
-          res()
+        db.run(
+          `insert into todos (title, created_by_user_id) values (?, ?)`,
+          [req.body.title, req.body.user_id],
+          (err) => {
+            if (err) {
+              rej(err)
+              return
+            }
         })
-        /*
-        TODO: write logic for adding new action item when user create new todo
-        db.run(`insert into actions (action_type, created_by_user_id) values (?, ?)`, [], (err) => {
+        db.get(
+          `select * from todos where title = ? and created_by_user_id = ?`,
+          [req.body.title, req.body.user_id],
+          (err, row) => {
+            if (err) {
+              rej(err)
+              return
+            }
+            res(row)
+          }
+        )
+      })
+    })
+    await new Promise((res, rej) => {
+      db.run(
+        `insert into actions (action_event, action_type, created_by_user_id, scope, todo_id) values (?, ?, ?, ?, ?)`,
+        [
+          'create',
+          'tood',
+          req.body.user_id,
+          req.body.scope === actionScope.PROJECT ? actionScope.PROJECT : actionScope.LOCAL,
+          todo.id
+        ],
+        (err) => {
           if (err) {
             rej(err)
             return 
           }
           res()
         })
-        */
-      })
     })
     res.status(200).json({ message: 'todo created' })
   } catch (err) {
@@ -80,34 +113,70 @@ app.post('/api/v0/todos', async (req, res) => {
 app.post('/api/v0/projects', async (req, res) => {
   try {
     await new Promise((res, rej) => {
-      db.run(`insert into projects (title, created_by_user_id) values (?, ?)`, [req.body.title, req.body.user_id], (err) => {
-        if (err) {
-          rej(err)
-          return
-        }
-        res()
-      })
+      db.run(
+        `insert into projects (title, created_by_user_id) values (?, ?)`,
+        [req.body.title, req.body.user_id],
+        (err) => {
+          if (err) {
+            rej(err)
+            return
+          }
+          res()
+        })
     })
     res.status(200).json({ message: 'project created' })
   } catch (err) {
     console.error(err)
   }
 })
+app.get('/api/v0/todos/:id/actions', (req, res) => {
+  try {
+    const todoId = Number(req.params.id)
+    const actions = new Promise((res, rej) => {
+      db.all(`select * from actions where todo_id = ?`, [todoId], (err, rows) => {
+        if (err) {
+          rej(err)
+          return
+        }
+        res(rows)
+      })
+    })
+    const user = new Promise((res, rej) => {
+      // TODO: replace constant user id
+      db.get(`select email from users where id = ?`, [1], (err, row) => {
+        if (err) {
+          rej(err)
+          return
+        }
+        res(row)
+      })
+    })
+    const todo = new Promise((res, rej) => {
+      db.get(`select title from todos where id = ?`, [todoId], (err, row) => {
+        if (err) {
+          rej(err)
+          return
+        }
+        res(row)
+      })
+    })
+    Promise.all([actions, user, todo])
+      .then((result) => {
+        const actions = result[0]
+        const userEmail = result[1].email
+        const todoTitle = result[2].title
+        const actionMsgs = []
+        for (let i = 0; i < actions.length; i++) {
+          actionMsgs.push(actionMsgTemplateConverter(actions[i].action_event, [userEmail, actions[i].action_type, todoTitle]))
+        }
+        res.status(200).json({ actions: actionMsgs })
+      })
+  } catch (err) {
+    console.error(err)
+  }
+})
 async function main() {
   const users = [{email: 'adam@gmail.com', password: 'qwert'}, {email: 'sam@gmail.com', password: 'yuiop'}]
-  // TODO: rewrite this pice of code as separate function that
-  // replace placeholders in action message templates
-  const createActionMsg = actionMsgTemplates['create']
-  const values = ['alex', 'todo', 'create user actions']
-  let index = 0
-  const regex = /\[[^\]]*\]/gi
-  const msg = createActionMsg.replace(regex, (match) => {
-    const replacement = match ? values[index] : match
-    index++
-    return replacement
-  })
-  console.log(msg)
-
   try {
     db.serialize(() => {
       db.run(`create table if not exists users (id integer primary key not null, email text not null, password text not null)`)
@@ -123,13 +192,9 @@ async function main() {
         foreign key (created_by_user_id) references users (id),
         foreign key (project_id) references projects (id)
       )`)
-      // UNCLEAR: how notifications will be work?
-      // QUESTION: what things must have trigger actions? What main thing that action is belongs?
-      // NOTE: i think will be good if i have two types of actions: 'global' and 'local'.
-      //       'local' actions belongs to each todo
-      //       'global' actions is action records of todos in projects
       db.run(`create table if not exists actions (
         id integer primary key not null,
+        action_event text not null,
         action_type text not null,
         created_by_user_id integer not null,
         todo_id integer not null,
@@ -166,6 +231,7 @@ async function main() {
       console.log('database connection is closed')
     })
     console.error(err)
+    process.exit(1)
   }
 } 
 
