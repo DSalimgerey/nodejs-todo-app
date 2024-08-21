@@ -134,7 +134,7 @@ async function main() {
         created_by_user_id integer not null,
         todo_id integer not null,
         scope text check(scope in ('local', 'project')) not null default 'local',
-        created_at text not null default current_timestamp
+        created_at text not null default current_timestamp,
         foreign key (created_by_user_id) references users (id),
         foreign key (todo_id) references todos (id)
       )`)
