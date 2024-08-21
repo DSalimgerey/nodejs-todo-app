@@ -80,8 +80,15 @@ app.post('/api/v0/todos', async (req, res) => {
 app.post('/api/v0/projects', async (req, res) => {
   try {
     await new Promise((res, rej) => {
-      db.run(`insert into projects (title, created_by_user_id) values (?, ?)`)
+      db.run(`insert into projects (title, created_by_user_id) values (?, ?)`, [req.body.title, req.body.user_id], (err) => {
+        if (err) {
+          rej(err)
+          return
+        }
+        res()
+      })
     })
+    res.status(200).json({ message: 'project created' })
   } catch (err) {
     console.error(err)
   }
