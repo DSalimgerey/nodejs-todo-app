@@ -28,7 +28,6 @@ app.use(express.urlencoded({ extended: true }))
 app.use(morgan('tiny'))
 app.use(cors())
 app.use(helmet())
-;('test tring')
 
 const actionScope = { LOCAL: 'local', PROJECT: 'project' }
 function actionMsgTemplateConverter(actionType, values) {
@@ -40,7 +39,6 @@ function actionMsgTemplateConverter(actionType, values) {
     index++
     return replacement
   })
-  console.log(msg)
   return msg
 }
 
