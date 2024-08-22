@@ -29,7 +29,10 @@ app.use(morgan('tiny'))
 app.use(cors())
 app.use(helmet())
 
-const actionScope = { LOCAL: 'local', PROJECT: 'project' }
+// NOTE: 'local' actions is actions that performed on each todo level (date changes, completition, adding new comments, etc.)
+// NOTE: 'global' actions is actions that performed globally on application level (invites, etc.) 
+const actionScope = { LOCAL: 'local', GLOBAL: 'global' }
+// NOTE: move this logic into frontend i think might be better option
 function actionMsgTemplateConverter(actionType, values) {
   const createActionMsg = actionMsgTemplates[actionType]
   let index = 0
@@ -45,7 +48,8 @@ function actionMsgTemplateConverter(actionType, values) {
 app.get('/api/v0/todos', async (req, res) => {
   try {
     const todos = await new Promise((res, rej) => {
-      db.all(`select * from todos where created_by_user_id = ?`, [1], (err, rows) => {
+      // TODO: replace magic number into dinamic user id from jwt
+      db.all(`select * from todos where created_by_user_id = ?`, [1], (err, rows) => { 
         if (err) {
           rej(err)
           return
@@ -92,7 +96,7 @@ app.post('/api/v0/todos', async (req, res) => {
           'create',
           'tood',
           req.body.user_id,
-          req.body.scope === actionScope.PROJECT ? actionScope.PROJECT : actionScope.LOCAL,
+          req.body.scope === actionScope.GLOBAL ? actionScope.GLOBAL : actionScope.LOCAL,
           todo.id,
         ],
         (err) => {
