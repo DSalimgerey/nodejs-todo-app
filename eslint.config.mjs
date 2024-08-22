@@ -5,7 +5,7 @@ import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended'
 
 export default [
   {
-    files: ['src/**/*.js'],
+    files: ['**/*.js'],
     languageOptions: { globals: globals.node },
     ignores: ['./node_modules', '.git/'],
   },
