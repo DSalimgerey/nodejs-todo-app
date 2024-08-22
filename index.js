@@ -27,10 +27,24 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(morgan('tiny'))
 app.use(cors())
-app.use(helmet())
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        'default-src': ["'self'"],
+        'script-src': ["'self'", 'localhost'],
+        'connect-src': ["'self'", 'localhost'],
+      },
+    },
+  }),
+)
+
+app.set('views', './views')
+app.set('view engine', 'pug')
+app.use(express.static('public'))
 
 // NOTE: 'local' actions is actions that performed on each todo level (date changes, completition, adding new comments, etc.)
-// NOTE: 'global' actions is actions that performed globally on application level (invites, etc.) 
+// NOTE: 'global' actions is actions that performed globally on application level (invites, etc.)
 const actionScope = { LOCAL: 'local', GLOBAL: 'global' }
 // NOTE: move this logic into frontend i think might be better option
 function actionMsgTemplateConverter(actionType, values) {
@@ -45,11 +59,14 @@ function actionMsgTemplateConverter(actionType, values) {
   return msg
 }
 
+app.get('/', (req, res) => {
+  res.status(200).render('index')
+})
 app.get('/api/v0/todos', async (req, res) => {
   try {
     const todos = await new Promise((res, rej) => {
       // TODO: replace magic number into dinamic user id from jwt
-      db.all(`select * from todos where created_by_user_id = ?`, [1], (err, rows) => { 
+      db.all(`select * from todos where created_by_user_id = ?`, [1], (err, rows) => {
         if (err) {
           rej(err)
           return
@@ -94,7 +111,7 @@ app.post('/api/v0/todos', async (req, res) => {
         `insert into actions (action_event, action_type, created_by_user_id, scope, todo_id) values (?, ?, ?, ?, ?)`,
         [
           'create',
-          'tood',
+          'todo',
           req.body.user_id,
           req.body.scope === actionScope.GLOBAL ? actionScope.GLOBAL : actionScope.LOCAL,
           todo.id,
@@ -108,7 +125,7 @@ app.post('/api/v0/todos', async (req, res) => {
         },
       )
     })
-    res.status(200).json({ message: 'todo created' })
+    res.status(200).json({ todo: todo })
   } catch (err) {
     console.error(err)
   }
