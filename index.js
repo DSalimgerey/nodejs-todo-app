@@ -130,6 +130,23 @@ app.post('/api/v0/todos', async (req, res) => {
     console.error(err)
   }
 })
+app.delete('/api/v0/todos/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    await new Promise((res, rej) => {
+      db.run(`delete from todos where id = ?`, [id], (err) => {
+        if (err) {
+          rej(err)
+          return
+        }
+        res()
+      })
+    })
+    res.status(200).send()
+  } catch (err) {
+    console.error(err)
+  }
+})
 app.post('/api/v0/projects', async (req, res) => {
   try {
     await new Promise((res, rej) => {
