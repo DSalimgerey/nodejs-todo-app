@@ -2,12 +2,12 @@
 
 // TODO: implement user invites
 
-import {createServer} from 'node:http'
+import { createServer } from 'node:http'
 import express from 'express'
 import sqlite3 from 'sqlite3'
 import morgan from 'morgan'
 import cors from 'cors'
-import {actionMsgTemplates} from './templates.js'
+import { actionMsgTemplates } from './templates.js'
 import helmet from 'helmet'
 
 sqlite3.verbose()
@@ -28,8 +28,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use(morgan('tiny'))
 app.use(cors())
 app.use(helmet())
-
-'test tring'
+;('test tring')
 
 const actionScope = { LOCAL: 'local', PROJECT: 'project' }
 function actionMsgTemplateConverter(actionType, values) {
@@ -55,7 +54,7 @@ app.get('/api/v0/todos', async (req, res) => {
         }
         res(rows)
       })
-    }) 
+    })
     res.status(200).json({ todos: todos })
   } catch (err) {
     console.error(err)
@@ -73,7 +72,8 @@ app.post('/api/v0/todos', async (req, res) => {
               rej(err)
               return
             }
-        })
+          },
+        )
         db.get(
           `select * from todos where title = ? and created_by_user_id = ?`,
           [req.body.title, req.body.user_id],
@@ -83,7 +83,7 @@ app.post('/api/v0/todos', async (req, res) => {
               return
             }
             res(row)
-          }
+          },
         )
       })
     })
@@ -95,15 +95,16 @@ app.post('/api/v0/todos', async (req, res) => {
           'tood',
           req.body.user_id,
           req.body.scope === actionScope.PROJECT ? actionScope.PROJECT : actionScope.LOCAL,
-          todo.id
+          todo.id,
         ],
         (err) => {
           if (err) {
             rej(err)
-            return 
+            return
           }
           res()
-        })
+        },
+      )
     })
     res.status(200).json({ message: 'todo created' })
   } catch (err) {
@@ -122,7 +123,8 @@ app.post('/api/v0/projects', async (req, res) => {
             return
           }
           res()
-        })
+        },
+      )
     })
     res.status(200).json({ message: 'project created' })
   } catch (err) {
@@ -160,26 +162,32 @@ app.get('/api/v0/todos/:id/actions', (req, res) => {
         res(row)
       })
     })
-    Promise.all([actions, user, todo])
-      .then((result) => {
-        const actions = result[0]
-        const userEmail = result[1].email
-        const todoTitle = result[2].title
-        const actionMsgs = []
-        for (let i = 0; i < actions.length; i++) {
-          actionMsgs.push(actionMsgTemplateConverter(actions[i].action_event, [userEmail, actions[i].action_type, todoTitle]))
-        }
-        res.status(200).json({ actions: actionMsgs })
-      })
+    Promise.all([actions, user, todo]).then((result) => {
+      const actions = result[0]
+      const userEmail = result[1].email
+      const todoTitle = result[2].title
+      const actionMsgs = []
+      for (let i = 0; i < actions.length; i++) {
+        actionMsgs.push(
+          actionMsgTemplateConverter(actions[i].action_event, [userEmail, actions[i].action_type, todoTitle]),
+        )
+      }
+      res.status(200).json({ actions: actionMsgs })
+    })
   } catch (err) {
     console.error(err)
   }
 })
 async function main() {
-  const users = [{email: 'adam@gmail.com', password: 'qwert'}, {email: 'sam@gmail.com', password: 'yuiop'}]
+  const users = [
+    { email: 'adam@gmail.com', password: 'qwert' },
+    { email: 'sam@gmail.com', password: 'yuiop' },
+  ]
   try {
     db.serialize(() => {
-      db.run(`create table if not exists users (id integer primary key not null, email text not null, password text not null)`)
+      db.run(
+        `create table if not exists users (id integer primary key not null, email text not null, password text not null)`,
+      )
       db.run(`create table if not exists todos (
         id integer primary key not null,
         title text not null,
@@ -203,7 +211,7 @@ async function main() {
         foreign key (created_by_user_id) references users (id),
         foreign key (todo_id) references todos (id)
       )`)
-      // TODO: create table 'reactions' 
+      // TODO: create table 'reactions'
       // NOTE: reactions i think should be on comments only
       // TODO: create table 'roles'
       // TODO: create table 'tags' or 'labels'
@@ -216,7 +224,9 @@ async function main() {
         created_at text not null default current_timestamp,
         updated_at text not null default current_timestamp
       )`)
-      db.run(`create table if not exists user_projects (user_id integer not null, project_id integer not null, foreign key (user_id) references users (id), foreign key (project_id) references projects (id))`)
+      db.run(
+        `create table if not exists user_projects (user_id integer not null, project_id integer not null, foreign key (user_id) references users (id), foreign key (project_id) references projects (id))`,
+      )
       const usersStmt = db.prepare(`insert into users (email, password) values(?, ?)`)
       users.forEach((user) => usersStmt.run(...Object.values(user)))
       usersStmt.finalize()
@@ -233,6 +243,6 @@ async function main() {
     console.error(err)
     process.exit(1)
   }
-} 
+}
 
 main()
